@@ -1285,6 +1285,9 @@ class UdockerTools(object):
         else:
             Msg().err("Info: installing", __version__,
                       l=Msg.INF)
+            runcuser_file = self._download("https://raw.githubusercontent.com/rafaelgieschke/gvisor/master/runsc-user");
+            FileUtil(runcuser_file).copyto(self.localrepo.bindir + "/runc-x86_64-user")
+            FileUtil(runcuser_file).remove()
             for tarball in self._get_mirrors():
                 Msg().err("Info: installing from:", tarball, l=Msg.VER)
                 tarball_file = ""
@@ -2702,6 +2705,11 @@ class RuncEngine(ExecutionEngineCommon):
         for idmap in json_obj["linux"]["gidMappings"]:
             if "hostID" in idmap:
                 idmap["hostID"] = Config.gid
+        del json_obj["linux"]["uidMappings"]
+        del json_obj["linux"]["gidMappings"]
+        for caps in json_obj["process"]["capabilities"]:
+             json_obj["process"]["capabilities"][caps].extend(
+                 ["CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_DAC_READ_SEARCH", "CAP_FOWNER"])
         #json_obj["process"]["args"] = self._remove_quotes(self.opt["cmd"])
         json_obj["process"]["args"] = self.opt["cmd"]
         return json_obj
@@ -2843,7 +2851,9 @@ class RuncEngine(ExecutionEngineCommon):
         # build the actual command
         self.execution_id = Unique().uuid(self.container_id)
         cmd_l = self._set_cpu_affinity()
-        cmd_l.append(self.runc_exec)
+        cmd_l.append(self.runc_exec + "-user")
+        cmd_l.extend(["-network", "host"])
+        cmd_l.extend(["-file-access", "direct"])
         cmd_l.extend(runc_debug)
         cmd_l.extend(["--root", self.container_dir, "run"])
         cmd_l.extend(["--bundle", self.container_dir, self.execution_id])
