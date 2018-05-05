@@ -2660,6 +2660,9 @@ class RuncEngine(ExecutionEngineCommon):
                 idmap["hostID"] = Config.gid
         del json_obj["linux"]["uidMappings"]
         del json_obj["linux"]["gidMappings"]
+        for caps in json_obj["process"]["capabilities"]:
+             json_obj["process"]["capabilities"][caps].extend(
+                 ["CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_DAC_READ_SEARCH", "CAP_FOWNER"])
         json_obj["process"]["args"] = self._remove_quotes(self.opt["cmd"])
         return json_obj
 
@@ -2825,7 +2828,7 @@ class RuncEngine(ExecutionEngineCommon):
 
         # build the actual command
         self.execution_id = Unique().uuid(self.container_id)
-        cmd = self._set_cpu_affinity() + self.runc_exec + "-user -network host" + runc_debug + \
+        cmd = self._set_cpu_affinity() + self.runc_exec + "-user -network host -file-access direct" + runc_debug + \
               " --root " + self.container_dir + \
               " run --bundle " + self.container_dir + " " + self.execution_id
         Msg().err("CMD = " + cmd, l=Msg.VER)
